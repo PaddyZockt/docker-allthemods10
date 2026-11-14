@@ -48,7 +48,7 @@ if [[ "$CURRENT_INSTALLED" != "$SERVER_VERSION" ]] || ! [[ -f run.sh ]]; then
   echo "Installiere/aktualisiere von '$CURRENT_INSTALLED' auf '$SERVER_VERSION' ..."
   rm -fr config defaultconfigs kubejs mods packmenu libraries neoforge*
 
-  curl -Lo "ServerFiles-$SERVER_VERSION.zip" "$DOWNLOAD_URL" || exit 9
+  curl -fL -H "x-api-key: $CURSEFORGE_API_KEY" -o "ServerFiles-$SERVER_VERSION.zip" "$DOWNLOAD_URL" || { echo "FEHLER: Download der ServerFiles fehlgeschlagen (API-Key gueltig?)"; exit 9; }
   unzip -u -o "ServerFiles-$SERVER_VERSION.zip" -d /data
 
   DIR_TEST=$(find . -maxdepth 1 -type d -iname "ServerFiles-*" | head -n1)
