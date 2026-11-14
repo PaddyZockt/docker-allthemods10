@@ -5,6 +5,13 @@ on:
     - cron: "23 3 * * *"   # einmal täglich prüfen (03:23 UTC)
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
+concurrency:
+  group: curseforge-autobuild
+  cancel-in-progress: false
+
 env:
   CURSEFORGE_MOD_ID: "925200"
   DOCKERHUB_REPO: "paddygametv/docker-allthemods10"
@@ -16,38 +23,41 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Neueste ServerFiles-Version von CurseForge holen
+      - name: Neueste Server-Pack-Version von CurseForge holen
         id: curseforge
         env:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
         run: |
-          HTTP_CODE=$(curl -s -o /tmp/cf_response.json -w "%{http_code}" \
-            -H "x-api-key: $CURSEFORGE_API_KEY" \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
-            -H "Accept: application/json" \
+          HDR=(-H "x-api-key: $CURSEFORGE_API_KEY" -H "Accept: application/json" \
+               -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+
+          HTTP_CODE=$(curl -s -o /tmp/cf_response.json -w "%{http_code}" "${HDR[@]}" \
             "https://api.curseforge.com/v1/mods/${CURSEFORGE_MOD_ID}/files?pageSize=50")
-
           echo "HTTP-Status von CurseForge: $HTTP_CODE"
-
           if [[ "$HTTP_CODE" != "200" ]]; then
-            echo "Antwort vom Server:"
-            cat /tmp/cf_response.json
-            exit 1
+            echo "Antwort vom Server:"; cat /tmp/cf_response.json; exit 1
           fi
 
-          RESPONSE=$(cat /tmp/cf_response.json)
+          echo "Neueste Dateien (Name | isServerPack | serverPackFileId):"
+          jq -r '.data[:6][] | "\(.fileName) | \(.isServerPack) | \(.serverPackFileId)"' /tmp/cf_response.json
 
-          LATEST_FILE=$(echo "$RESPONSE" | jq -c '
-            [.data[] | select(.fileName | test("^ServerFiles-.*\\.zip$"))]
+          LATEST_FILE=$(jq -c '
+            [.data[] | select((.isServerPack == true) or (.fileName | test("^server-?files-.*\\.zip$"; "i")))]
             | sort_by(.fileDate) | last
-          ')
+          ' /tmp/cf_response.json)
 
           if [[ "$LATEST_FILE" == "null" || -z "$LATEST_FILE" ]]; then
-            echo "Keine ServerFiles gefunden – Abbruch."
-            exit 1
+            SP_ID=$(jq -r '[.data[] | select(.serverPackFileId != null)] | sort_by(.fileDate) | last | .serverPackFileId // empty' /tmp/cf_response.json)
+            if [[ -n "$SP_ID" ]]; then
+              LATEST_FILE=$(curl -sf "${HDR[@]}" "https://api.curseforge.com/v1/mods/${CURSEFORGE_MOD_ID}/files/${SP_ID}" | jq -c '.data')
+            fi
           fi
 
-          VERSION=$(echo "$LATEST_FILE" | jq -r '.fileName' | sed -E 's/^ServerFiles-(.*)\.zip$/\1/')
+          if [[ "$LATEST_FILE" == "null" || -z "$LATEST_FILE" ]]; then
+            echo "Keine Server-Pack-Datei gefunden – Abbruch."; exit 1
+          fi
+
+          VERSION=$(echo "$LATEST_FILE" | jq -r '.fileName' | sed -E 's/^[Ss]erver-?[Ff]iles-(.*)\.zip$/\1/; s/\.zip$//' | tr -c 'A-Za-z0-9_.\n-' '-')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Neueste Version laut CurseForge: $VERSION"
 
@@ -57,7 +67,6 @@ jobs:
           VERSION="${{ steps.curseforge.outputs.version }}"
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             "https://hub.docker.com/v2/repositories/${DOCKERHUB_REPO}/tags/${VERSION}/")
-
           if [[ "$STATUS" == "200" ]]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "Version $VERSION existiert schon auf Docker Hub."
@@ -65,6 +74,13 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "Version $VERSION ist neu!"
           fi
+
+      - name: README und Dockerfile-Version aktualisieren
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          V="${{ steps.curseforge.outputs.version }}"
+          sed -i -E "s/All the Mods 10-[0-9][0-9A-Za-z.]*/All the Mods 10-${V}/g" README.md
+          sed -i -E "s/^(LABEL version=)\"[^\"]*\"/\1\"${V}\"/" Dockerfile
 
       - name: Login to Docker Hub
         if: steps.check.outputs.exists == 'false'
@@ -77,7 +93,7 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & Push
+      - name: Build & Push (latest + Versions-Tag)
         if: steps.check.outputs.exists == 'false'
         uses: docker/build-push-action@v5
         with:
@@ -87,3 +103,13 @@ jobs:
           tags: |
             ${{ env.DOCKERHUB_REPO }}:latest
             ${{ env.DOCKERHUB_REPO }}:${{ steps.curseforge.outputs.version }}
+
+      - name: Versionsänderung ins Repo committen
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -am "Version ${{ steps.curseforge.outputs.version }} (automatisch)"
+            git push
+          fi

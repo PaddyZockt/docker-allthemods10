@@ -27,16 +27,25 @@ FILES_JSON=$(curl -sf -H "x-api-key: $CURSEFORGE_API_KEY" -H "Accept: applicatio
 
 # Von allen Dateien nur die "ServerFiles-*.zip" behalten und die neueste (nach Datum) nehmen
 LATEST_FILE=$(echo "$FILES_JSON" | jq -c '
-  [.data[] | select(.fileName | test("^ServerFiles-.*\\.zip$"))]
+  [.data[] | select((.isServerPack == true) or (.fileName | test("^server-?files-.*\\.zip$"; "i")))]
   | sort_by(.fileDate) | last
 ')
+
+# Fallback: Server-Pack ueber die serverPackFileId der neuesten Hauptdatei holen
+if [[ "$LATEST_FILE" == "null" || -z "$LATEST_FILE" ]]; then
+  SP_ID=$(echo "$FILES_JSON" | jq -r '[.data[] | select(.serverPackFileId != null)] | sort_by(.fileDate) | last | .serverPackFileId // empty')
+  if [[ -n "$SP_ID" ]]; then
+    LATEST_FILE=$(curl -sf -H "x-api-key: $CURSEFORGE_API_KEY" -H "Accept: application/json" \
+      "https://api.curseforge.com/v1/mods/${CURSEFORGE_MOD_ID}/files/${SP_ID}" | jq -c '.data')
+  fi
+fi
 
 if [[ "$LATEST_FILE" == "null" || -z "$LATEST_FILE" ]]; then
   echo "FEHLER: Keine ServerFiles-*.zip bei CurseForge gefunden."
   exit 96
 fi
 
-SERVER_VERSION=$(echo "$LATEST_FILE" | jq -r '.fileName' | sed -E 's/^ServerFiles-(.*)\.zip$/\1/')
+SERVER_VERSION=$(echo "$LATEST_FILE" | jq -r '.fileName' | sed -E 's/^[Ss]erver-?[Ff]iles-(.*)\.zip$/\1/; s/\.zip$//')
 DOWNLOAD_URL=$(echo "$LATEST_FILE" | jq -r '.downloadUrl')
 echo "Neueste verfügbare Version laut CurseForge: $SERVER_VERSION"
 
