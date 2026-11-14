@@ -113,3 +113,13 @@ jobs:
             git commit -am "Version ${{ steps.curseforge.outputs.version }} (automatisch)"
             git push
           fi
+
+      - name: Docker-Hub-Beschreibung mit README abgleichen
+        continue-on-error: true
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DOCKERHUB_REPO }}
+          short-description: "All the Mods 10 Minecraft server for Unraid/Docker - auto-built for every new server pack version"
+          readme-filepath: ./README.md
