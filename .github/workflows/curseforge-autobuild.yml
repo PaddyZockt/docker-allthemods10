@@ -2,7 +2,7 @@ name: CurseForge Auto Build
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # alle 30 Minuten prüfen
+    - cron: "23 3 * * *"   # einmal täglich prüfen (03:23 UTC)
   workflow_dispatch: {}
 
 env:
