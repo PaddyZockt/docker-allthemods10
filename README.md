@@ -52,4 +52,4 @@ All optional. Set them as environment variables.
 
 ## Credits
 
-This repository is a fork of [W3LFARe/docker-allthemods10](https://github.com/W3LFARe/docker-allthemods10), which in turn builds on [Goobaroo/docker-allthemods9](https://github.com/Goobaroo/docker-allthemods9). Thanks to both authors.
+The start-up logic was rewritten from scratch; the repository started as a fork of [W3LFARe/docker-allthemods10](https://github.com/W3LFARe/docker-allthemods10), which in turn builds on [Goobaroo/docker-allthemods9](https://github.com/Goobaroo/docker-allthemods9). Thanks to both authors.
