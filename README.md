@@ -1,5 +1,5 @@
 
-# [All the Mods 10-8.5](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10) on Curseforge
+# [All the Mods 10-8.6](https://www.curseforge.com/minecraft/modpacks/all-the-mods-10) on Curseforge
 <!-- toc -->
 
 - [Description](#description)
@@ -21,7 +21,7 @@ This container is built to run on an [Unraid](https://unraid.net) server, outsid
 Unraid users: a ready-made template is available in the Apps tab (Community Applications) once published, or manually from https://github.com/PaddyZockt/unraid-templates (templates/allthemods10.xml).
 
 
-The docker on the first run will download the same version as tagged `All the Mods 10-8.5` and install it.  This can take a while as the Forge installer can take a bit to complete.  You can watch the logs and it will eventually finish.
+The docker on the first run will download the same version as tagged `All the Mods 10-8.6` and install it.  This can take a while as the Forge installer can take a bit to complete.  You can watch the logs and it will eventually finish.
 
 After the first run, it will simply start the server.
 
@@ -41,7 +41,7 @@ As the end user, you are responsible for accepting the EULA from Mojang to run t
 These environment variables can be set to override their defaults.
 
 * JVM_OPTS "-Xms2500m -Xmx8192m"
-* MOTD "All the Mods 10-8.5 Server Powered by Docker"
+* MOTD "All the Mods 10-8.6 Server Powered by Docker"
 * ALLOW_FLIGHT "true" or "false"
 * MAX_PLAYERS "5"
 * ONLINE_MODE "true" or "false"
