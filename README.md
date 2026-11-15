@@ -49,7 +49,3 @@ All optional. Set them as environment variables.
 * **Permission errors on `/data`:** give uid 99 / gid 100 write access to the folder.
 * **Install is incomplete or broken:** stop the container and delete `/data/.installed_server_version`. The next start installs the pack again; your world stays.
 * **CurseForge refuses the download:** check that the key is valid and that you copied all of it.
-
-## Credits
-
-The start-up logic was rewritten from scratch; the repository started as a fork of [W3LFARe/docker-allthemods10](https://github.com/W3LFARe/docker-allthemods10), which in turn builds on [Goobaroo/docker-allthemods9](https://github.com/Goobaroo/docker-allthemods9). Thanks to both authors.
